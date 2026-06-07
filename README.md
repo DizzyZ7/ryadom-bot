@@ -33,6 +33,7 @@ The first version supports:
 - complaints
 - admin moderation
 - paginated admin lists
+- paginated location catalog
 - complaint actions
 - admin statistics
 - moderator audit log
@@ -150,7 +151,7 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `/admin` — admin dashboard
 - `/stats` — project statistics
 - `/audit` — paginated moderator action log
-- `/locations` — city and district catalog
+- `/locations` — paginated city and district catalog
 - `/addcity city_name` — add or reactivate city
 - `/adddistrict city_id district_name` — add or reactivate district
 - `/hidecity city_id` — hide city from user selection
