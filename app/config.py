@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     auto_publish_without_admins: bool = Field(default=True, alias="AUTO_PUBLISH_WITHOUT_ADMINS")
     create_schema_on_start: bool = Field(default=True, alias="CREATE_SCHEMA_ON_START")
+    rate_limit_seconds: float = Field(default=0.7, alias="RATE_LIMIT_SECONDS")
 
     @property
     def admin_ids(self) -> set[int]:
