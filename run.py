@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from app.all_handlers import router
 from app.config import settings
 from app.database import create_db_schema, dispose_engine
-from app.middlewares import BanMiddleware, RateLimitMiddleware
+from app.middlewares import BanMiddleware, ErrorHandlingMiddleware, RateLimitMiddleware
 
 
 async def main() -> None:
@@ -25,6 +25,8 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dispatcher = Dispatcher()
+    dispatcher.message.middleware(ErrorHandlingMiddleware())
+    dispatcher.callback_query.middleware(ErrorHandlingMiddleware())
     dispatcher.message.middleware(BanMiddleware())
     dispatcher.callback_query.middleware(BanMiddleware())
     dispatcher.message.middleware(RateLimitMiddleware(settings.rate_limit_seconds))
