@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import SessionFactory
-from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, categories_keyboard, request_actions_keyboard, reward_keyboard
+from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, URGENCY_TYPES, categories_keyboard, request_actions_keyboard, reward_keyboard, urgency_keyboard
 from app.location_keyboards import cities_keyboard, districts_keyboard
 from app.models import City, District, HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
 from app.notifications import safe_send_message
@@ -18,6 +18,7 @@ user_router = Router()
 
 CATEGORY_LABELS = dict(CATEGORIES)
 REWARD_LABELS = dict(REWARD_TYPES)
+URGENCY_LABELS = dict(URGENCY_TYPES)
 STATUS_LABELS = {
     "moderation": "На модерации",
     "published": "Опубликована",
@@ -54,10 +55,12 @@ def format_request(request: HelpRequest, owner: User | None = None) -> str:
     reward = REWARD_LABELS.get(request.reward_type, request.reward_type)
     if request.reward_amount:
         reward = f"{reward}: {request.reward_amount}"
+    urgency = URGENCY_LABELS.get(getattr(request, "urgency", "flexible"), "Не срочно")
     return (
         f"<b>#{request.id} {request.title}</b>\n"
         f"Категория: {CATEGORY_LABELS.get(request.category, request.category)}\n"
         f"Статус: {STATUS_LABELS.get(request.status, request.status)}\n"
+        f"Срочность: {urgency}\n"
         f"Район: {location}\n"
         f"Когда: {request.needed_at_text or 'не указано'}\n"
         f"Оплата: {reward}\n"
@@ -246,8 +249,21 @@ async def create_request_address(message: Message, state: FSMContext) -> None:
 @user_router.message(CreateRequestState.needed_at_text)
 async def create_request_needed_at(message: Message, state: FSMContext) -> None:
     await state.update_data(needed_at_text=(message.text or "").strip())
-    await message.answer("Выбери формат оплаты.", reply_markup=reward_keyboard())
+    await message.answer("Выбери срочность заявки.", reply_markup=urgency_keyboard())
+    await state.set_state(CreateRequestState.urgency)
+
+
+@user_router.callback_query(CreateRequestState.urgency, F.data.startswith("urgency:"))
+async def create_request_urgency(callback: CallbackQuery, state: FSMContext) -> None:
+    urgency = callback.data.split(":", 1)[1]
+    allowed_urgencies = {value for value, _ in URGENCY_TYPES}
+    if urgency not in allowed_urgencies:
+        await callback.answer("Некорректная срочность", show_alert=True)
+        return
+    await state.update_data(urgency=urgency)
+    await callback.message.answer("Выбери формат оплаты.", reply_markup=reward_keyboard())
     await state.set_state(CreateRequestState.reward_type)
+    await callback.answer()
 
 
 @user_router.callback_query(CreateRequestState.reward_type, F.data.startswith("reward:"))
@@ -310,6 +326,7 @@ async def create_request_confirm(message: Message, state: FSMContext) -> None:
             district=data.get("district"),
             address_hint=data.get("address_hint"),
             needed_at_text=data.get("needed_at_text"),
+            urgency=data.get("urgency", "flexible"),
             reward_type=data.get("reward_type", "free"),
             reward_amount=data.get("reward_amount"),
             status=status,
