@@ -13,6 +13,9 @@ The first version supports:
 - published requests feed
 - user requests list
 - helper offers
+- complaints
+- admin moderation
+- user ban and unban
 - PostgreSQL storage through SQLAlchemy async
 
 ## Stack
@@ -48,6 +51,26 @@ LOG_LEVEL=INFO
 AUTO_PUBLISH_WITHOUT_ADMINS=true
 CREATE_SCHEMA_ON_START=true
 ```
+
+## User commands
+
+- `/start` — start bot and create profile
+- `/cancel` — cancel current action
+- `Профиль` — set city and district
+- `Нужна помощь` — create request
+- `Заявки рядом` — show local requests
+- `Хочу помочь` — show local requests
+- `Мои заявки` — show own requests
+- `Правила безопасности` — safety rules
+
+## Admin commands
+
+- `/admin` — admin dashboard
+- `/moderation` — requests waiting for moderation
+- `/complaints` — new complaints
+- `/user telegram_id` — user details
+- `/ban telegram_id` — ban user
+- `/unban telegram_id` — unban user
 
 ## Production notes
 
