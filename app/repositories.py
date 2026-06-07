@@ -13,6 +13,18 @@ URGENCY_SORT = case(
 )
 
 
+def published_request_base_query(limit: int) -> Select[tuple[HelpRequest]]:
+    return (
+        select(HelpRequest)
+        .join(User, User.id == HelpRequest.user_id)
+        .options(selectinload(HelpRequest.owner))
+        .where(HelpRequest.status == HelpRequestStatus.PUBLISHED.value)
+        .where(User.is_banned.is_(False))
+        .order_by(URGENCY_SORT.asc(), HelpRequest.created_at.desc())
+        .limit(limit)
+    )
+
+
 async def get_or_create_user(
     session: AsyncSession,
     telegram_id: int,
@@ -88,19 +100,31 @@ async def list_published_requests(
     district: str | None,
     limit: int = 10,
 ) -> list[HelpRequest]:
-    query: Select[tuple[HelpRequest]] = (
-        select(HelpRequest)
-        .join(User, User.id == HelpRequest.user_id)
-        .options(selectinload(HelpRequest.owner))
-        .where(HelpRequest.status == HelpRequestStatus.PUBLISHED.value)
-        .where(User.is_banned.is_(False))
-        .order_by(URGENCY_SORT.asc(), HelpRequest.created_at.desc())
-        .limit(limit)
-    )
+    query = published_request_base_query(limit)
     if city:
         query = query.where(HelpRequest.city == city)
     if district:
         query = query.where(HelpRequest.district == district)
+    return list(await session.scalars(query))
+
+
+async def list_filtered_requests(
+    session: AsyncSession,
+    city: str | None,
+    district: str | None,
+    category: str | None,
+    urgency: str | None,
+    limit: int = 10,
+) -> list[HelpRequest]:
+    query = published_request_base_query(limit)
+    if city:
+        query = query.where(HelpRequest.city == city)
+    if district:
+        query = query.where(HelpRequest.district == district)
+    if category:
+        query = query.where(HelpRequest.category == category)
+    if urgency:
+        query = query.where(HelpRequest.urgency == urgency)
     return list(await session.scalars(query))
 
 
