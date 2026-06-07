@@ -1,7 +1,7 @@
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
-from sqlalchemy import select
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from sqlalchemy import func, select
 
 from app.audit import write_audit_log
 from app.config import settings
@@ -9,10 +9,72 @@ from app.database import SessionFactory
 from app.models import City, District
 
 admin_location_router = Router()
+PAGE_SIZE = 1
 
 
 def is_admin(telegram_id: int) -> bool:
     return settings.is_admin(telegram_id)
+
+
+def location_keyboard(offset: int, total: int) -> InlineKeyboardMarkup | None:
+    nav: list[InlineKeyboardButton] = []
+    if offset > 0:
+        nav.append(InlineKeyboardButton(text="Назад", callback_data=f"admin:locations:{offset - 1}"))
+    if offset + 1 < total:
+        nav.append(InlineKeyboardButton(text="Далее", callback_data=f"admin:locations:{offset + 1}"))
+    if not nav:
+        return None
+    return InlineKeyboardMarkup(inline_keyboard=[nav])
+
+
+def render_location_page(city: City, districts: list[District], offset: int, total: int) -> str:
+    city_status = "активен" if city.is_active else "скрыт"
+    parts = [
+        "<b>Справочник локаций</b>",
+        f"Страница: {offset + 1}/{total}",
+        f"Город: {city.id}. {city.name} — {city_status}",
+        "",
+        "<b>Районы</b>",
+    ]
+    if districts:
+        for district in districts:
+            district_status = "активен" if district.is_active else "скрыт"
+            parts.append(f"- {district.id}. {district.name} — {district_status}")
+    else:
+        parts.append("- районов нет")
+    parts.extend(
+        [
+            "",
+            "Команды:",
+            "/addcity Название города",
+            f"/adddistrict {city.id} Название района",
+            f"/hidecity {city.id}",
+            "/hidedistrict district_id",
+        ]
+    )
+    return "\n".join(parts)
+
+
+async def get_location_page(offset: int) -> tuple[City | None, list[District], int, int]:
+    offset = max(offset, 0)
+    async with SessionFactory() as session:
+        total = await session.scalar(select(func.count()).select_from(City))
+        total = total or 0
+        if total <= 0:
+            return None, [], 0, 0
+        if offset >= total:
+            offset = total - 1
+        city = await session.scalar(select(City).order_by(City.name.asc()).offset(offset).limit(PAGE_SIZE))
+        if city is None:
+            return None, [], offset, total
+        districts = list(
+            await session.scalars(
+                select(District)
+                .where(District.city_id == city.id)
+                .order_by(District.name.asc())
+            )
+        )
+    return city, districts, offset, total
 
 
 @admin_location_router.message(Command("locations"))
@@ -21,27 +83,35 @@ async def locations_list(message: Message) -> None:
         await message.answer("Нет доступа.")
         return
 
-    async with SessionFactory() as session:
-        cities = list(await session.scalars(select(City).order_by(City.name.asc())))
-        result: list[str] = ["<b>Справочник локаций</b>"]
-        for city in cities:
-            districts = list(
-                await session.scalars(
-                    select(District)
-                    .where(District.city_id == city.id)
-                    .order_by(District.name.asc())
-                )
-            )
-            city_status = "активен" if city.is_active else "скрыт"
-            result.append(f"\n<b>{city.id}. {city.name}</b> — {city_status}")
-            if districts:
-                for district in districts:
-                    district_status = "активен" if district.is_active else "скрыт"
-                    result.append(f"- {district.id}. {district.name} — {district_status}")
-            else:
-                result.append("- районов нет")
+    city, districts, offset, total = await get_location_page(0)
+    if city is None:
+        await message.answer("Справочник локаций пуст.")
+        return
 
-    await message.answer("\n".join(result))
+    await message.answer(
+        render_location_page(city, districts, offset, total),
+        reply_markup=location_keyboard(offset, total),
+    )
+
+
+@admin_location_router.callback_query(F.data.startswith("admin:locations:"))
+async def locations_page(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    offset = int(callback.data.rsplit(":", 1)[1])
+    city, districts, offset, total = await get_location_page(offset)
+    if city is None:
+        await callback.message.edit_text("Справочник локаций пуст.")
+        await callback.answer()
+        return
+
+    await callback.message.edit_text(
+        render_location_page(city, districts, offset, total),
+        reply_markup=location_keyboard(offset, total),
+    )
+    await callback.answer()
 
 
 @admin_location_router.message(Command("addcity"))
