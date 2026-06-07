@@ -1,5 +1,5 @@
 from aiogram import Router
-from app.handlers_fixed import router as user_router
+from app.user_handlers import user_router
 from app.admin_handlers import admin_router
 from app.admin_user_handlers import admin_user_router
 from app.complaint_handlers import complaint_router
