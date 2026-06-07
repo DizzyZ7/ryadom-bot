@@ -12,6 +12,8 @@ The first version supports:
 - admin-managed city and district dictionary
 - creating help requests
 - request categories
+- request urgency levels
+- urgency-based request feed sorting
 - published requests feed
 - user requests list
 - request lifecycle management
@@ -86,6 +88,18 @@ For production, prefer migrations and set:
 CREATE_SCHEMA_ON_START=false
 ```
 
+## Request urgency
+
+Requests support urgency levels:
+
+- urgent — Срочно
+- today — Сегодня
+- tomorrow — Завтра
+- week — На неделе
+- flexible — Не срочно
+
+The public feed is sorted by urgency first and creation date second.
+
 ## Environment
 
 Required variables:
@@ -111,9 +125,9 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `/request request_id` — show request details and owner actions
 - `Профиль` — set city and district manually
 - `Выбрать локацию` — choose city and district from catalog
-- `Нужна помощь` — create request with catalog-based location selection
-- `Заявки рядом` — show local requests
-- `Хочу помочь` — show local requests
+- `Нужна помощь` — create request with catalog-based location and urgency selection
+- `Заявки рядом` — show local requests sorted by urgency
+- `Хочу помочь` — show local requests sorted by urgency
 - `Мои заявки` — show own requests
 - `Отклики по моим заявкам` or `/offers` — show incoming offers for own requests
 - `Мои отклики` or `/myoffers` — show sent offers
