@@ -77,12 +77,15 @@ Steps:
 7. send time text
 8. choose urgency
 9. choose reward type
-10. send `+`
+10. check preview
+11. tap `Создать заявку`
 
 Expected:
 
 - choice steps edit one wizard message
-- request is created
+- preview appears before creation
+- cancel button stops creation
+- request is created only after confirmation
 - final card includes category, status, urgency, location, reward and trust line
 
 ## 4. Nearby feed
