@@ -65,6 +65,17 @@ def urgency_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def create_request_confirm_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Создать заявку", callback_data="create_request:confirm"),
+                InlineKeyboardButton(text="Отменить", callback_data="create_request:cancel"),
+            ]
+        ]
+    )
+
+
 def filter_category_keyboard() -> InlineKeyboardMarkup:
     buttons = [[InlineKeyboardButton(text="Любая категория", callback_data="filter_category:any")]]
     buttons.extend(
