@@ -80,8 +80,10 @@ async def list_published_requests(
 ) -> list[HelpRequest]:
     query: Select[tuple[HelpRequest]] = (
         select(HelpRequest)
+        .join(User, User.id == HelpRequest.user_id)
         .options(selectinload(HelpRequest.owner))
         .where(HelpRequest.status == HelpRequestStatus.PUBLISHED.value)
+        .where(User.is_banned.is_(False))
         .order_by(HelpRequest.created_at.desc())
         .limit(limit)
     )
