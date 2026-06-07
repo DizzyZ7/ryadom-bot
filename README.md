@@ -13,7 +13,6 @@ The first version supports:
 - published requests feed
 - user requests list
 - helper offers
-- basic moderation callbacks
 - PostgreSQL storage through SQLAlchemy async
 
 ## Stack
@@ -28,12 +27,12 @@ The first version supports:
 ## Local start
 
 1. Create `.env` from `.env.example`.
-2. Install dependencies from `deps.txt`.
+2. Install dependencies from `deps.txt` or create `requirements.txt` with the same content.
 3. Start PostgreSQL.
 4. Run:
 
 ```bash
-python -m app.main
+python run.py
 ```
 
 ## Environment
