@@ -5,9 +5,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+from app.all_handlers import router
 from app.config import settings
 from app.database import create_db_schema, dispose_engine
-from app.handlers_fixed import router
 
 
 async def main() -> None:
