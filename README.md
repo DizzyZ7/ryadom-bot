@@ -36,11 +36,13 @@ The first version supports:
 - paginated location catalog
 - complaint actions
 - admin statistics
+- admin health check
 - moderator audit log
 - user ban and unban
 - user verification
 - PostgreSQL storage through SQLAlchemy async
 - Alembic migrations
+- Docker production deployment
 
 ## Stack
 
@@ -51,6 +53,7 @@ The first version supports:
 - asyncpg
 - Alembic
 - pydantic-settings
+- Docker
 
 ## Local start
 
@@ -78,6 +81,21 @@ pip install -r requirements.txt
 docker compose up -d
 alembic upgrade head
 python run.py
+```
+
+## Production start
+
+See `DEPLOY.md` for full deployment notes.
+
+```bash
+cp .env.prod.example .env
+docker compose -f compose.prod.yaml up -d --build
+```
+
+After startup, open Telegram and run:
+
+```text
+/health
 ```
 
 ## Migrations
@@ -149,6 +167,7 @@ MAX_PENDING_OFFERS_PER_USER=10
 ## Admin commands
 
 - `/admin` — admin dashboard
+- `/health` — database and config health check
 - `/stats` — project statistics
 - `/audit` — paginated moderator action log
 - `/locations` — paginated city and district catalog
@@ -167,4 +186,4 @@ MAX_PENDING_OFFERS_PER_USER=10
 
 ## Production notes
 
-The repository is public, so never commit real secrets. Use hosting environment variables for the bot token, database URL and admin ids.
+The repository is public, so never commit real secrets. Use hosting environment variables or `.env` files that are never committed.
