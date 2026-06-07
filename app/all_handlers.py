@@ -7,6 +7,7 @@ from app.admin_stats_handlers import admin_stats_router
 from app.admin_audit_handlers import admin_audit_router
 from app.admin_location_handlers import admin_location_router
 from app.complaint_handlers import complaint_router
+from app.create_cancel_handlers import create_cancel_router
 from app.create_request_handlers import create_request_router
 from app.filter_handlers import filter_router
 from app.location_handlers import location_router
@@ -23,6 +24,7 @@ router.include_router(admin_stats_router)
 router.include_router(admin_audit_router)
 router.include_router(admin_location_router)
 router.include_router(complaint_router)
+router.include_router(create_cancel_router)
 router.include_router(create_request_router)
 router.include_router(filter_router)
 router.include_router(location_router)
