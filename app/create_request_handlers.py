@@ -1,7 +1,8 @@
 from aiogram import F, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message, User as TelegramUser
+from html import escape
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,11 +14,12 @@ from app.keyboards import (
     REWARD_TYPES,
     URGENCY_TYPES,
     categories_keyboard,
+    create_request_confirm_keyboard,
     reward_keyboard,
     urgency_keyboard,
 )
 from app.location_keyboards import cities_keyboard, districts_keyboard
-from app.models import City, District, HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.models import City, District, HelpRequest, HelpRequestStatus, User
 from app.repositories import create_help_request, get_or_create_user
 from app.states import CreateRequestState
 from app.user_handlers import format_request
@@ -40,6 +42,15 @@ async def ensure_user(message: Message, session: AsyncSession) -> User:
         telegram_id=message.from_user.id,
         username=message.from_user.username,
         first_name=message.from_user.first_name,
+    )
+
+
+async def ensure_user_from_telegram(from_user: TelegramUser, session: AsyncSession) -> User:
+    return await get_or_create_user(
+        session=session,
+        telegram_id=from_user.id,
+        username=from_user.username,
+        first_name=from_user.first_name,
     )
 
 
@@ -80,6 +91,81 @@ async def edit_wizard_callback(
     except TelegramAPIError:
         sent = await callback.message.answer(text, reply_markup=reply_markup)
         await state.update_data(wizard_message_id=sent.message_id)
+
+
+def format_request_preview(data: dict) -> str:
+    location = ", ".join(item for item in [data.get("city"), data.get("district")] if item) or "не указано"
+    reward_type = data.get("reward_type", "free")
+    reward = REWARD_LABELS.get(reward_type, reward_type)
+    if data.get("reward_amount"):
+        reward = f"{reward}: {data['reward_amount']}"
+    status = "Опубликована" if settings.auto_publish_without_admins else "На модерации"
+    return (
+        "<b>Предпросмотр заявки</b>\n\n"
+        f"<b>{escape(str(data.get('title', 'Без названия')))}</b>\n"
+        f"Категория: {escape(CATEGORY_LABELS.get(data.get('category'), str(data.get('category'))))}\n"
+        f"Статус после создания: {status}\n"
+        f"Срочность: {escape(URGENCY_LABELS.get(data.get('urgency', 'flexible'), 'Не срочно'))}\n"
+        f"Район: {escape(location)}\n"
+        f"Когда: {escape(str(data.get('needed_at_text') or 'не указано'))}\n"
+        f"Оплата: {escape(str(reward))}\n\n"
+        f"{escape(str(data.get('description', '')))}\n\n"
+        "Проверь текст. Если все верно, нажми <b>Создать заявку</b>."
+    )
+
+
+async def show_request_preview_message(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    await state.set_state(CreateRequestState.confirm)
+    await edit_wizard_message(
+        message,
+        state,
+        format_request_preview(data),
+        reply_markup=create_request_confirm_keyboard(),
+    )
+
+
+async def show_request_preview_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    await state.set_state(CreateRequestState.confirm)
+    await edit_wizard_callback(
+        callback,
+        state,
+        format_request_preview(data),
+        reply_markup=create_request_confirm_keyboard(),
+    )
+
+
+async def create_request_from_state(state: FSMContext, from_user: TelegramUser) -> tuple[HelpRequest | None, User | None, str | None]:
+    data = await state.get_data()
+    async with SessionFactory() as session:
+        user = await ensure_user_from_telegram(from_user, session)
+        active_requests_count = await session.scalar(
+            select(func.count())
+            .select_from(HelpRequest)
+            .where(HelpRequest.user_id == user.id)
+            .where(HelpRequest.status.in_(ACTIVE_REQUEST_STATUSES))
+        )
+        if not user.is_verified and (active_requests_count or 0) >= settings.max_active_requests_per_user:
+            return None, user, "Лимит активных заявок достигнут. Заверши или отмени старые заявки перед созданием новой."
+
+        status = HelpRequestStatus.PUBLISHED if settings.auto_publish_without_admins else HelpRequestStatus.MODERATION
+        request = await create_help_request(
+            session=session,
+            user=user,
+            category=data["category"],
+            title=data["title"],
+            description=data["description"],
+            city=data.get("city"),
+            district=data.get("district"),
+            address_hint=data.get("address_hint"),
+            needed_at_text=data.get("needed_at_text"),
+            urgency=data.get("urgency", "flexible"),
+            reward_type=data.get("reward_type", "free"),
+            reward_amount=data.get("reward_amount"),
+            status=status,
+        )
+        return request, user, None
 
 
 @create_request_router.message(F.text == "Нужна помощь")
@@ -129,7 +215,7 @@ async def create_request_title(message: Message, state: FSMContext) -> None:
         state,
         "<b>Создание заявки</b>\n\n"
         f"Категория: {CATEGORY_LABELS.get(data.get('category'), data.get('category'))}\n"
-        f"Заголовок: {title}\n\n"
+        f"Заголовок: {escape(title)}\n\n"
         "Шаг 3: опиши подробнее, что нужно сделать.",
     )
 
@@ -182,7 +268,7 @@ async def create_request_city_from_catalog(callback: CallbackQuery, state: FSMCo
         callback,
         state,
         "<b>Создание заявки</b>\n\n"
-        f"Город: {city.name}\n\n"
+        f"Город: {escape(city.name)}\n\n"
         "Шаг 5: выбери район заявки.",
         reply_markup=districts_keyboard(districts, "request_location"),
     )
@@ -219,7 +305,7 @@ async def create_request_district_from_catalog(callback: CallbackQuery, state: F
         callback,
         state,
         "<b>Создание заявки</b>\n\n"
-        f"Район: {district_name or 'без района'}\n\n"
+        f"Район: {escape(district_name or 'без района')}\n\n"
         "Шаг 6: отправь ориентир или адрес без квартиры. Если не хочешь указывать, отправь '-'.",
     )
     await callback.answer()
@@ -269,7 +355,7 @@ async def create_request_urgency(callback: CallbackQuery, state: FSMContext) -> 
         callback,
         state,
         "<b>Создание заявки</b>\n\n"
-        f"Срочность: {URGENCY_TYPES and dict(URGENCY_TYPES).get(urgency, urgency)}\n\n"
+        f"Срочность: {URGENCY_LABELS.get(urgency, urgency)}\n\n"
         "Шаг 8: выбери формат оплаты.",
         reply_markup=reward_keyboard(),
     )
@@ -296,14 +382,7 @@ async def create_request_reward(callback: CallbackQuery, state: FSMContext) -> N
         )
     else:
         await state.update_data(reward_amount=None)
-        await state.set_state(CreateRequestState.confirm)
-        await edit_wizard_callback(
-            callback,
-            state,
-            "<b>Создание заявки</b>\n\n"
-            f"Формат оплаты: {REWARD_LABELS.get(reward_type, reward_type)}\n\n"
-            "Финальный шаг: отправь '+' чтобы создать заявку или /cancel для отмены.",
-        )
+        await show_request_preview_callback(callback, state)
     await callback.answer()
 
 
@@ -320,52 +399,59 @@ async def create_request_reward_amount(message: Message, state: FSMContext) -> N
         return
 
     await state.update_data(reward_amount=amount)
-    await state.set_state(CreateRequestState.confirm)
-    await edit_wizard_message(message, state, "Сумма сохранена. Отправь '+' чтобы создать заявку или /cancel для отмены.")
+    await show_request_preview_message(message, state)
+
+
+@create_request_router.callback_query(CreateRequestState.confirm, F.data == "create_request:cancel")
+async def create_request_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text("Создание заявки отменено.")
+    await callback.answer()
+
+
+@create_request_router.callback_query(CreateRequestState.confirm, F.data == "create_request:confirm")
+async def create_request_confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    request, user, error_text = await create_request_from_state(state, callback.from_user)
+    if error_text:
+        await edit_wizard_callback(callback, state, error_text)
+        await state.clear()
+        await callback.answer()
+        return
+    if request is None or user is None:
+        await edit_wizard_callback(callback, state, "Не удалось создать заявку. Попробуй позже.")
+        await state.clear()
+        await callback.answer()
+        return
+
+    text = format_request(request, owner=user)
+    await callback.message.edit_text(f"Заявка #{request.id} создана.")
+    await state.clear()
+    await callback.message.answer(text, reply_markup=MAIN_MENU)
+    await callback.answer()
 
 
 @create_request_router.message(CreateRequestState.confirm)
-async def create_request_confirm(message: Message, state: FSMContext) -> None:
+async def create_request_confirm_message(message: Message, state: FSMContext) -> None:
     if (message.text or "").strip() != "+":
-        await edit_wizard_message(message, state, "Отправь '+' для создания заявки или /cancel для отмены.")
+        await edit_wizard_message(
+            message,
+            state,
+            "Нажми кнопку <b>Создать заявку</b> под предпросмотром или отправь '+' для создания.",
+            reply_markup=create_request_confirm_keyboard(),
+        )
         return
 
-    data = await state.get_data()
-    async with SessionFactory() as session:
-        user = await ensure_user(message, session)
-        active_requests_count = await session.scalar(
-            select(func.count())
-            .select_from(HelpRequest)
-            .where(HelpRequest.user_id == user.id)
-            .where(HelpRequest.status.in_(ACTIVE_REQUEST_STATUSES))
-        )
-        if not user.is_verified and (active_requests_count or 0) >= settings.max_active_requests_per_user:
-            await edit_wizard_message(
-                message,
-                state,
-                "Лимит активных заявок достигнут. Заверши или отмени старые заявки перед созданием новой.",
-            )
-            await state.clear()
-            return
+    request, user, error_text = await create_request_from_state(state, message.from_user)
+    if error_text:
+        await edit_wizard_message(message, state, error_text)
+        await state.clear()
+        return
+    if request is None or user is None:
+        await edit_wizard_message(message, state, "Не удалось создать заявку. Попробуй позже.")
+        await state.clear()
+        return
 
-        status = HelpRequestStatus.PUBLISHED if settings.auto_publish_without_admins else HelpRequestStatus.MODERATION
-        request = await create_help_request(
-            session=session,
-            user=user,
-            category=data["category"],
-            title=data["title"],
-            description=data["description"],
-            city=data.get("city"),
-            district=data.get("district"),
-            address_hint=data.get("address_hint"),
-            needed_at_text=data.get("needed_at_text"),
-            urgency=data.get("urgency", "flexible"),
-            reward_type=data.get("reward_type", "free"),
-            reward_amount=data.get("reward_amount"),
-            status=status,
-        )
-        text = format_request(request, owner=user)
-
+    text = format_request(request, owner=user)
     await edit_wizard_message(message, state, f"Заявка #{request.id} создана.")
     await state.clear()
     await message.answer(text, reply_markup=MAIN_MENU)
