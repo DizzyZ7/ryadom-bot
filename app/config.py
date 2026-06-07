@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     auto_publish_without_admins: bool = Field(default=True, alias="AUTO_PUBLISH_WITHOUT_ADMINS")
     create_schema_on_start: bool = Field(default=True, alias="CREATE_SCHEMA_ON_START")
     rate_limit_seconds: float = Field(default=0.7, alias="RATE_LIMIT_SECONDS")
+    max_active_requests_per_user: int = Field(default=5, alias="MAX_ACTIVE_REQUESTS_PER_USER")
+    max_pending_offers_per_user: int = Field(default=10, alias="MAX_PENDING_OFFERS_PER_USER")
 
     @property
     def admin_ids(self) -> set[int]:
