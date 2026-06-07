@@ -8,6 +8,8 @@ The first version supports:
 
 - Telegram registration by user id
 - profile city and district
+- location catalog with city and district selection
+- admin-managed city and district dictionary
 - creating help requests
 - request categories
 - published requests feed
@@ -107,8 +109,9 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `/cancel` — cancel current action
 - `/me` or `Мой профиль` — show profile card and activity counters
 - `/request request_id` — show request details and owner actions
-- `Профиль` — set city and district
-- `Нужна помощь` — create request
+- `Профиль` — set city and district manually
+- `Выбрать локацию` — choose city and district from catalog
+- `Нужна помощь` — create request with catalog-based location selection
 - `Заявки рядом` — show local requests
 - `Хочу помочь` — show local requests
 - `Мои заявки` — show own requests
@@ -122,6 +125,11 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `/stats` — project statistics
 - `/audit` — last 10 moderator actions
 - `/audit 30` — last 30 moderator actions
+- `/locations` — city and district catalog
+- `/addcity city_name` — add or reactivate city
+- `/adddistrict city_id district_name` — add or reactivate district
+- `/hidecity city_id` — hide city from user selection
+- `/hidedistrict district_id` — hide district from user selection
 - `/moderation` — requests waiting for moderation
 - `/complaints` — new complaints
 - `/complaint complaint_id` — complaint details and actions
