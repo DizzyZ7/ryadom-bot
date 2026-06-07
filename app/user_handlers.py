@@ -2,12 +2,13 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import SessionFactory
 from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, categories_keyboard, request_actions_keyboard, reward_keyboard
-from app.models import HelpRequest, HelpRequestStatus, User
+from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
 from app.notifications import safe_send_message
 from app.repositories import create_help_request, create_offer, get_or_create_user, get_request_by_id, list_published_requests, list_user_requests, update_user_location
 from app.states import CreateRequestState, OfferState, ProfileState
@@ -23,6 +24,11 @@ STATUS_LABELS = {
     "done": "Выполнена",
     "canceled": "Отменена",
     "rejected": "Отклонена",
+}
+ACTIVE_REQUEST_STATUSES = {
+    HelpRequestStatus.MODERATION.value,
+    HelpRequestStatus.PUBLISHED.value,
+    HelpRequestStatus.IN_PROGRESS.value,
 }
 
 
@@ -98,7 +104,8 @@ async def profile_handler(message: Message, state: FSMContext) -> None:
         await message.answer(
             "<b>Профиль</b>\n"
             f"Локация: {location}\n"
-            f"Рейтинг: {user.rating} ({user.rating_count} отзывов)\n\n"
+            f"Рейтинг: {user.rating} ({user.rating_count} отзывов)\n"
+            f"Аккаунт: {'проверен' if user.is_verified else 'не проверен'}\n\n"
             "Чтобы изменить город и район, отправь: <code>город, район</code>"
         )
     await state.set_state(ProfileState.city)
@@ -227,6 +234,18 @@ async def create_request_confirm(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     async with SessionFactory() as session:
         user = await ensure_user(message, session)
+        active_requests_count = await session.scalar(
+            select(func.count())
+            .select_from(HelpRequest)
+            .where(HelpRequest.user_id == user.id)
+            .where(HelpRequest.status.in_(ACTIVE_REQUEST_STATUSES))
+        )
+        if not user.is_verified and (active_requests_count or 0) >= settings.max_active_requests_per_user:
+            await message.answer(
+                "Лимит активных заявок достигнут. Заверши или отмени старые заявки перед созданием новой."
+            )
+            await state.clear()
+            return
         status = HelpRequestStatus.PUBLISHED if settings.auto_publish_without_admins else HelpRequestStatus.MODERATION
         request = await create_help_request(
             session=session,
@@ -299,6 +318,18 @@ async def offer_save(message: Message, state: FSMContext) -> None:
 
     async with SessionFactory() as session:
         user = await ensure_user(message, session)
+        pending_offers_count = await session.scalar(
+            select(func.count())
+            .select_from(Offer)
+            .where(Offer.helper_id == user.id)
+            .where(Offer.status == OfferStatus.PENDING.value)
+        )
+        if not user.is_verified and (pending_offers_count or 0) >= settings.max_pending_offers_per_user:
+            await message.answer(
+                "Лимит ожидающих откликов достигнут. Дождись решения по старым откликам перед новым откликом."
+            )
+            await state.clear()
+            return
         request = await get_request_by_id(session, int(data["request_id"]))
         if request is None or request.status != HelpRequestStatus.PUBLISHED.value:
             await message.answer("Заявка уже недоступна.")
