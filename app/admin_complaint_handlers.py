@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 
+from app.audit import write_audit_log
 from app.config import settings
 from app.database import SessionFactory
 from app.models import Complaint, ComplaintStatus, User
@@ -79,6 +80,13 @@ async def close_complaint(callback: CallbackQuery) -> None:
             await callback.answer("Жалоба не найдена", show_alert=True)
             return
         complaint.status = ComplaintStatus.CLOSED.value
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="complaint_close",
+            entity_type="complaint",
+            entity_id=complaint_id,
+        )
         await session.commit()
 
     await callback.message.answer(f"Жалоба #{complaint_id} закрыта.")
@@ -109,7 +117,16 @@ async def ban_complaint_target(callback: CallbackQuery) -> None:
             return
         target.is_banned = True
         complaint.status = ComplaintStatus.CLOSED.value
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="complaint_ban_target",
+            entity_type="complaint",
+            entity_id=complaint_id,
+            details=f"target_user_id={target.id}; target_telegram_id={target.telegram_id}",
+        )
         await session.commit()
+        target_telegram_id = target.telegram_id
 
-    await callback.message.answer(f"Пользователь {target.telegram_id} забанен. Жалоба #{complaint_id} закрыта.")
+    await callback.message.answer(f"Пользователь {target_telegram_id} забанен. Жалоба #{complaint_id} закрыта.")
     await callback.answer()
