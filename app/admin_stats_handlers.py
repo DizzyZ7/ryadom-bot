@@ -1,13 +1,15 @@
+from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import func, select
 
 from app.config import settings
 from app.database import SessionFactory
-from app.models import Complaint, ComplaintStatus, HelpRequest, Offer, OfferStatus, Review, User
-from aiogram import Router
+from app.keyboards import URGENCY_TYPES
+from app.models import Complaint, ComplaintStatus, HelpRequest, Offer, Review, User
 
 admin_stats_router = Router()
+URGENCY_LABELS = dict(URGENCY_TYPES)
 
 
 def is_admin(telegram_id: int) -> bool:
@@ -18,6 +20,12 @@ def format_rows(rows: list[tuple[str | None, int]], empty_label: str = "не у�
     if not rows:
         return "нет данных"
     return "\n".join(f"- {label or empty_label}: {count}" for label, count in rows)
+
+
+def format_urgency_rows(rows: list[tuple[str | None, int]]) -> str:
+    if not rows:
+        return "нет данных"
+    return "\n".join(f"- {URGENCY_LABELS.get(label or 'flexible', label or 'Не срочно')}: {count}" for label, count in rows)
 
 
 @admin_stats_router.message(Command("stats"))
@@ -46,6 +54,15 @@ async def admin_stats(message: Message) -> None:
                 await session.execute(
                     select(HelpRequest.status, func.count())
                     .group_by(HelpRequest.status)
+                    .order_by(func.count().desc())
+                )
+            ).all()
+        )
+        request_urgency_rows = list(
+            (
+                await session.execute(
+                    select(HelpRequest.urgency, func.count())
+                    .group_by(HelpRequest.urgency)
                     .order_by(func.count().desc())
                 )
             ).all()
@@ -107,6 +124,8 @@ async def admin_stats(message: Message) -> None:
         f"Новых жалоб: {new_complaints_count or 0}\n\n"
         "<b>Заявки по статусам</b>\n"
         f"{format_rows(request_status_rows)}\n\n"
+        "<b>Заявки по срочности</b>\n"
+        f"{format_urgency_rows(request_urgency_rows)}\n\n"
         "<b>Отклики по статусам</b>\n"
         f"{format_rows(offer_status_rows)}\n\n"
         "<b>Топ категорий</b>\n"
