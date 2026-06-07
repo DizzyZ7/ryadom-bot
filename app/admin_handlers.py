@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import func, select
 
+from app.audit import write_audit_log
 from app.config import settings
 from app.database import SessionFactory
 from app.models import Complaint, ComplaintStatus, HelpRequest, HelpRequestStatus, User
@@ -77,7 +78,8 @@ async def admin_menu(message: Message) -> None:
         f"Новых жалоб: {complaints_count or 0}\n\n"
         "Команды:\n"
         "/moderation — заявки на модерации\n"
-        "/complaints — новые жалобы"
+        "/complaints — новые жалобы\n"
+        "/audit — журнал действий"
     )
 
 
@@ -118,6 +120,13 @@ async def publish_request(callback: CallbackQuery) -> None:
             await callback.answer("Заявка не найдена", show_alert=True)
             return
         request.status = HelpRequestStatus.PUBLISHED.value
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="request_publish",
+            entity_type="help_request",
+            entity_id=request_id,
+        )
         await session.commit()
 
     await callback.message.answer(f"Заявка #{request_id} опубликована.")
@@ -137,6 +146,13 @@ async def reject_request(callback: CallbackQuery) -> None:
             await callback.answer("Заявка не найдена", show_alert=True)
             return
         request.status = HelpRequestStatus.REJECTED.value
+        await write_audit_log(
+            session,
+            callback.from_user.id,
+            action="request_reject",
+            entity_type="help_request",
+            entity_id=request_id,
+        )
         await session.commit()
 
     await callback.message.answer(f"Заявка #{request_id} отклонена.")
