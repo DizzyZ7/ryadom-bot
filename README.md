@@ -14,6 +14,7 @@ The first version supports:
 - request categories
 - request urgency levels
 - urgency-based request feed sorting
+- request filters by category, urgency and search scope
 - published requests feed
 - user requests list
 - request lifecycle management
@@ -100,6 +101,10 @@ Requests support urgency levels:
 
 The public feed is sorted by urgency first and creation date second.
 
+## Request filters
+
+The `Фильтр заявок` button lets users filter requests by category, urgency and search scope: district, city or all cities.
+
 ## Environment
 
 Required variables:
@@ -127,6 +132,7 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `Выбрать локацию` — choose city and district from catalog
 - `Нужна помощь` — create request with catalog-based location and urgency selection
 - `Заявки рядом` — show local requests sorted by urgency
+- `Фильтр заявок` — filter requests by category, urgency and search scope
 - `Хочу помочь` — show local requests sorted by urgency
 - `Мои заявки` — show own requests
 - `Отклики по моим заявкам` or `/offers` — show incoming offers for own requests
