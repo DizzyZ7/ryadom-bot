@@ -7,12 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import SessionFactory
-from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, URGENCY_TYPES, categories_keyboard, request_actions_keyboard, reward_keyboard, urgency_keyboard
-from app.location_keyboards import cities_keyboard, districts_keyboard
-from app.models import City, District, HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, URGENCY_TYPES, request_actions_keyboard
+from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
 from app.notifications import safe_send_message
-from app.repositories import create_help_request, create_offer, get_or_create_user, get_request_by_id, list_published_requests, list_user_requests, update_user_location
-from app.states import CreateRequestState, OfferState, ProfileState
+from app.repositories import create_offer, get_or_create_user, get_request_by_id, list_published_requests, list_user_requests, update_user_location
+from app.states import OfferState, ProfileState
 
 user_router = Router()
 
@@ -26,11 +25,6 @@ STATUS_LABELS = {
     "done": "Выполнена",
     "canceled": "Отменена",
     "rejected": "Отклонена",
-}
-ACTIVE_REQUEST_STATUSES = {
-    HelpRequestStatus.MODERATION.value,
-    HelpRequestStatus.PUBLISHED.value,
-    HelpRequestStatus.IN_PROGRESS.value,
 }
 
 
@@ -136,205 +130,6 @@ async def save_profile_location(message: Message, state: FSMContext) -> None:
         await update_user_location(session, user, city, district)
     await state.clear()
     await message.answer("Локация сохранена.", reply_markup=MAIN_MENU)
-
-
-@user_router.message(F.text == "Нужна помощь")
-async def create_request_start(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer("Выбери категорию заявки.", reply_markup=categories_keyboard())
-    await state.set_state(CreateRequestState.category)
-
-
-@user_router.callback_query(CreateRequestState.category, F.data.startswith("category:"))
-async def create_request_category(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.update_data(category=callback.data.split(":", 1)[1])
-    await callback.message.answer("Короткий заголовок заявки.")
-    await state.set_state(CreateRequestState.title)
-    await callback.answer()
-
-
-@user_router.message(CreateRequestState.title)
-async def create_request_title(message: Message, state: FSMContext) -> None:
-    title = (message.text or "").strip()
-    if not 5 <= len(title) <= 160:
-        await message.answer("Заголовок должен быть от 5 до 160 символов.")
-        return
-    await state.update_data(title=title)
-    await message.answer("Опиши подробнее, что нужно сделать.")
-    await state.set_state(CreateRequestState.description)
-
-
-@user_router.message(CreateRequestState.description)
-async def create_request_description(message: Message, state: FSMContext) -> None:
-    description = (message.text or "").strip()
-    if len(description) < 10:
-        await message.answer("Описание слишком короткое.")
-        return
-    await state.update_data(description=description)
-    async with SessionFactory() as session:
-        cities = list(await session.scalars(select(City).where(City.is_active.is_(True)).order_by(City.name.asc())))
-    if cities:
-        await message.answer("Выбери город заявки.", reply_markup=cities_keyboard(cities, "request_location"))
-    else:
-        await message.answer("Укажи город.")
-    await state.set_state(CreateRequestState.city)
-
-
-@user_router.callback_query(CreateRequestState.city, F.data.startswith("request_location:city:"))
-async def create_request_city_from_catalog(callback: CallbackQuery, state: FSMContext) -> None:
-    city_id = int(callback.data.rsplit(":", 1)[1])
-    async with SessionFactory() as session:
-        city = await session.get(City, city_id)
-        if city is None or not city.is_active:
-            await callback.answer("Город недоступен", show_alert=True)
-            return
-        districts = list(
-            await session.scalars(
-                select(District)
-                .where(District.city_id == city.id)
-                .where(District.is_active.is_(True))
-                .order_by(District.name.asc())
-            )
-        )
-    await state.update_data(city=city.name)
-    await callback.message.answer("Выбери район заявки.", reply_markup=districts_keyboard(districts, "request_location"))
-    await state.set_state(CreateRequestState.district)
-    await callback.answer()
-
-
-@user_router.message(CreateRequestState.city)
-async def create_request_city(message: Message, state: FSMContext) -> None:
-    city = (message.text or "").strip()
-    if len(city) < 2:
-        await message.answer("Город слишком короткий.")
-        return
-    await state.update_data(city=city)
-    await message.answer("Укажи район. Если не важно, напиши -")
-    await state.set_state(CreateRequestState.district)
-
-
-@user_router.callback_query(CreateRequestState.district, F.data.startswith("request_location:district:"))
-async def create_request_district_from_catalog(callback: CallbackQuery, state: FSMContext) -> None:
-    district_id = int(callback.data.rsplit(":", 1)[1])
-    district_name = None
-    if district_id > 0:
-        async with SessionFactory() as session:
-            district = await session.get(District, district_id)
-            if district is None or not district.is_active:
-                await callback.answer("Район недоступен", show_alert=True)
-                return
-            district_name = district.name
-    await state.update_data(district=district_name)
-    await callback.message.answer("Ориентир или адрес без квартиры. Если не хочешь указывать, напиши -")
-    await state.set_state(CreateRequestState.address_hint)
-    await callback.answer()
-
-
-@user_router.message(CreateRequestState.district)
-async def create_request_district(message: Message, state: FSMContext) -> None:
-    district = (message.text or "").strip()
-    await state.update_data(district=None if district == "-" else district)
-    await message.answer("Ориентир или адрес без квартиры. Если не хочешь указывать, напиши -")
-    await state.set_state(CreateRequestState.address_hint)
-
-
-@user_router.message(CreateRequestState.address_hint)
-async def create_request_address(message: Message, state: FSMContext) -> None:
-    value = (message.text or "").strip()
-    await state.update_data(address_hint=None if value == "-" else value)
-    await message.answer("Когда нужна помощь?")
-    await state.set_state(CreateRequestState.needed_at_text)
-
-
-@user_router.message(CreateRequestState.needed_at_text)
-async def create_request_needed_at(message: Message, state: FSMContext) -> None:
-    await state.update_data(needed_at_text=(message.text or "").strip())
-    await message.answer("Выбери срочность заявки.", reply_markup=urgency_keyboard())
-    await state.set_state(CreateRequestState.urgency)
-
-
-@user_router.callback_query(CreateRequestState.urgency, F.data.startswith("urgency:"))
-async def create_request_urgency(callback: CallbackQuery, state: FSMContext) -> None:
-    urgency = callback.data.split(":", 1)[1]
-    allowed_urgencies = {value for value, _ in URGENCY_TYPES}
-    if urgency not in allowed_urgencies:
-        await callback.answer("Некорректная срочность", show_alert=True)
-        return
-    await state.update_data(urgency=urgency)
-    await callback.message.answer("Выбери формат оплаты.", reply_markup=reward_keyboard())
-    await state.set_state(CreateRequestState.reward_type)
-    await callback.answer()
-
-
-@user_router.callback_query(CreateRequestState.reward_type, F.data.startswith("reward:"))
-async def create_request_reward(callback: CallbackQuery, state: FSMContext) -> None:
-    reward_type = callback.data.split(":", 1)[1]
-    await state.update_data(reward_type=reward_type)
-    if reward_type == "paid":
-        await callback.message.answer("Укажи сумму числом.")
-        await state.set_state(CreateRequestState.reward_amount)
-    else:
-        await state.update_data(reward_amount=None)
-        await callback.message.answer("Отправь + чтобы создать заявку.")
-        await state.set_state(CreateRequestState.confirm)
-    await callback.answer()
-
-
-@user_router.message(CreateRequestState.reward_amount)
-async def create_request_reward_amount(message: Message, state: FSMContext) -> None:
-    try:
-        amount = float((message.text or "").replace(",", "."))
-    except ValueError:
-        await message.answer("Сумма должна быть числом.")
-        return
-    if amount <= 0:
-        await message.answer("Сумма должна быть больше 0.")
-        return
-    await state.update_data(reward_amount=amount)
-    await message.answer("Отправь + чтобы создать заявку.")
-    await state.set_state(CreateRequestState.confirm)
-
-
-@user_router.message(CreateRequestState.confirm)
-async def create_request_confirm(message: Message, state: FSMContext) -> None:
-    if (message.text or "").strip() != "+":
-        await message.answer("Отправь + для создания заявки или /cancel для отмены.")
-        return
-    data = await state.get_data()
-    async with SessionFactory() as session:
-        user = await ensure_user(message, session)
-        active_requests_count = await session.scalar(
-            select(func.count())
-            .select_from(HelpRequest)
-            .where(HelpRequest.user_id == user.id)
-            .where(HelpRequest.status.in_(ACTIVE_REQUEST_STATUSES))
-        )
-        if not user.is_verified and (active_requests_count or 0) >= settings.max_active_requests_per_user:
-            await message.answer(
-                "Лимит активных заявок достигнут. Заверши или отмени старые заявки перед созданием новой."
-            )
-            await state.clear()
-            return
-        status = HelpRequestStatus.PUBLISHED if settings.auto_publish_without_admins else HelpRequestStatus.MODERATION
-        request = await create_help_request(
-            session=session,
-            user=user,
-            category=data["category"],
-            title=data["title"],
-            description=data["description"],
-            city=data.get("city"),
-            district=data.get("district"),
-            address_hint=data.get("address_hint"),
-            needed_at_text=data.get("needed_at_text"),
-            urgency=data.get("urgency", "flexible"),
-            reward_type=data.get("reward_type", "free"),
-            reward_amount=data.get("reward_amount"),
-            status=status,
-        )
-        text = format_request(request, owner=user)
-    await state.clear()
-    await message.answer("Заявка создана.", reply_markup=MAIN_MENU)
-    await message.answer(text)
 
 
 @user_router.message(F.text.in_({"Заявки рядом", "Хочу помочь"}))
