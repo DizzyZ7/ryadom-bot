@@ -6,9 +6,11 @@ from sqlalchemy import func, select
 from app.audit import write_audit_log
 from app.config import settings
 from app.database import SessionFactory
+from app.keyboards import URGENCY_TYPES
 from app.models import Complaint, ComplaintStatus, HelpRequest, HelpRequestStatus, User
 
 admin_router = Router()
+URGENCY_LABELS = dict(URGENCY_TYPES)
 
 STATUS_LABELS = {
     "moderation": "На модерации",
@@ -31,9 +33,11 @@ def admin_request_text(request: HelpRequest, owner: User | None) -> str:
         if owner.username:
             owner_text += f" / @{owner.username}"
     location = ", ".join(item for item in [request.city, request.district] if item) or "не указано"
+    urgency = URGENCY_LABELS.get(getattr(request, "urgency", "flexible"), "Не срочно")
     return (
         f"<b>Заявка #{request.id}</b>\n"
         f"Статус: {STATUS_LABELS.get(request.status, request.status)}\n"
+        f"Срочность: {urgency}\n"
         f"Автор: {owner_text}\n"
         f"Категория: {request.category}\n"
         f"Локация: {location}\n"
