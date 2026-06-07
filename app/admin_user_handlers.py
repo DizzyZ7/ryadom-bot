@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import select
 
+from app.audit import write_audit_log
 from app.config import settings
 from app.database import SessionFactory
 from app.models import User
@@ -75,6 +76,14 @@ async def ban_user(message: Message) -> None:
             await message.answer("Пользователь не найден.")
             return
         user.is_banned = True
+        await write_audit_log(
+            session,
+            message.from_user.id,
+            action="user_ban",
+            entity_type="user",
+            entity_id=user.id,
+            details=f"telegram_id={telegram_id}",
+        )
         await session.commit()
 
     await message.answer(f"Пользователь {telegram_id} забанен.")
@@ -97,6 +106,14 @@ async def unban_user(message: Message) -> None:
             await message.answer("Пользователь не найден.")
             return
         user.is_banned = False
+        await write_audit_log(
+            session,
+            message.from_user.id,
+            action="user_unban",
+            entity_type="user",
+            entity_id=user.id,
+            details=f"telegram_id={telegram_id}",
+        )
         await session.commit()
 
     await message.answer(f"Пользователь {telegram_id} разбанен.")
@@ -119,6 +136,14 @@ async def verify_user(message: Message) -> None:
             await message.answer("Пользователь не найден.")
             return
         user.is_verified = True
+        await write_audit_log(
+            session,
+            message.from_user.id,
+            action="user_verify",
+            entity_type="user",
+            entity_id=user.id,
+            details=f"telegram_id={telegram_id}",
+        )
         await session.commit()
 
     await message.answer(f"Пользователь {telegram_id} отмечен как проверенный.")
@@ -141,6 +166,14 @@ async def unverify_user(message: Message) -> None:
             await message.answer("Пользователь не найден.")
             return
         user.is_verified = False
+        await write_audit_log(
+            session,
+            message.from_user.id,
+            action="user_unverify",
+            entity_type="user",
+            entity_id=user.id,
+            details=f"telegram_id={telegram_id}",
+        )
         await session.commit()
 
     await message.answer(f"Проверка пользователя {telegram_id} снята.")
