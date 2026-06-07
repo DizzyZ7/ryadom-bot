@@ -4,11 +4,13 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy import select
 
 from app.database import SessionFactory
+from app.keyboards import URGENCY_TYPES
 from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
 from app.notifications import safe_send_message
 from app.review_handlers import rating_keyboard
 
 request_management_router = Router()
+URGENCY_LABELS = dict(URGENCY_TYPES)
 
 STATUS_LABELS = {
     HelpRequestStatus.MODERATION.value: "На модерации",
@@ -42,9 +44,11 @@ def format_request_card(request: HelpRequest, owner: User | None) -> str:
     if owner:
         owner_text = "@" + owner.username if owner.username else owner.first_name or str(owner.telegram_id)
     location = ", ".join(item for item in [request.city, request.district] if item) or "не указано"
+    urgency = URGENCY_LABELS.get(getattr(request, "urgency", "flexible"), "Не срочно")
     return (
         f"<b>Заявка #{request.id}</b>\n"
         f"Статус: {STATUS_LABELS.get(request.status, request.status)}\n"
+        f"Срочность: {urgency}\n"
         f"Автор: {owner_text}\n"
         f"Район: {location}\n"
         f"Когда: {request.needed_at_text or 'не указано'}\n\n"
