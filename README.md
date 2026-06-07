@@ -18,6 +18,9 @@ The first version supports:
 - moving accepted requests to in-progress status
 - completion flow with helper rating
 - user reviews and rating aggregation
+- my profile card
+- trust info in request and offer cards
+- hiding banned authors from public feed
 - safe Telegram notifications
 - anti-spam rate limits
 - per-user limits for unverified users
@@ -101,6 +104,7 @@ MAX_PENDING_OFFERS_PER_USER=10
 
 - `/start` — start bot and create profile
 - `/cancel` — cancel current action
+- `/me` or `Мой профиль` — show profile card and activity counters
 - `/request request_id` — show request details and owner actions
 - `Профиль` — set city and district
 - `Нужна помощь` — create request
