@@ -40,6 +40,13 @@ def public_name(user: User | None) -> str:
     return user.first_name or str(user.telegram_id)
 
 
+def trust_line(user: User | None) -> str:
+    if user is None:
+        return "Автор: неизвестно"
+    verified = "проверен" if user.is_verified else "не проверен"
+    return f"Автор: {public_name(user)} | рейтинг {user.rating} ({user.rating_count} отзывов) | {verified}"
+
+
 def format_request(request: HelpRequest, owner: User | None = None) -> str:
     request_owner = owner or request.__dict__.get("owner")
     location = ", ".join(item for item in [request.city, request.district] if item) or "не указано"
@@ -53,7 +60,7 @@ def format_request(request: HelpRequest, owner: User | None = None) -> str:
         f"Район: {location}\n"
         f"Когда: {request.needed_at_text or 'не указано'}\n"
         f"Оплата: {reward}\n"
-        f"Автор: {public_name(request_owner)}\n\n"
+        f"{trust_line(request_owner)}\n\n"
         f"{request.description}"
     )
 
