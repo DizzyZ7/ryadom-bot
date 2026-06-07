@@ -56,6 +56,30 @@ class User(Base):
         return round(self.rating_sum / self.rating_count, 2)
 
 
+class City(Base):
+    __tablename__ = "cities"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    districts: Mapped[list["District"]] = relationship(back_populates="city")
+
+
+class District(Base):
+    __tablename__ = "districts"
+    __table_args__ = (
+        UniqueConstraint("city_id", "name", name="uq_districts_city_name"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    city_id: Mapped[int] = mapped_column(ForeignKey("cities.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(128), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    city: Mapped[City] = relationship(back_populates="districts")
+
+
 class HelpRequest(Base):
     __tablename__ = "help_requests"
 
