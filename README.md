@@ -11,6 +11,7 @@ The first version supports:
 - location catalog with city and district selection
 - admin-managed city and district dictionary
 - creating help requests
+- editable create-request wizard
 - request categories
 - request urgency levels
 - urgency-based request feed sorting
@@ -105,6 +106,10 @@ The public feed is sorted by urgency first and creation date second.
 
 The `Фильтр заявок` button lets users filter requests by category, urgency and search scope: district, city or all cities.
 
+## User experience
+
+Selection-based flows use editable messages where possible. The filter flow and create-request wizard update one master message instead of sending a new bot message for every button step.
+
 ## Environment
 
 Required variables:
@@ -130,7 +135,7 @@ MAX_PENDING_OFFERS_PER_USER=10
 - `/request request_id` — show request details and owner actions
 - `Профиль` — set city and district manually
 - `Выбрать локацию` — choose city and district from catalog
-- `Нужна помощь` — create request with catalog-based location and urgency selection
+- `Нужна помощь` — create request with editable wizard
 - `Заявки рядом` — show local requests sorted by urgency
 - `Фильтр заявок` — filter requests by category, urgency and search scope
 - `Хочу помочь` — show local requests sorted by urgency
