@@ -10,6 +10,7 @@ from app.complaint_handlers import complaint_router
 from app.create_cancel_handlers import create_cancel_router
 from app.create_request_handlers import create_request_router
 from app.filter_handlers import filter_router
+from app.health_handlers import health_router
 from app.location_handlers import location_router
 from app.me_handlers import me_router
 from app.offer_management_handlers import offer_management_router
@@ -23,6 +24,7 @@ router.include_router(admin_complaint_router)
 router.include_router(admin_stats_router)
 router.include_router(admin_audit_router)
 router.include_router(admin_location_router)
+router.include_router(health_router)
 router.include_router(complaint_router)
 router.include_router(create_cancel_router)
 router.include_router(create_request_router)
