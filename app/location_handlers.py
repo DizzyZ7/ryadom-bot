@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
@@ -22,8 +23,22 @@ async def choose_location_start(message: Message, state: FSMContext) -> None:
         return
 
     await state.clear()
-    await message.answer("Выбери город.", reply_markup=cities_keyboard(cities, "profile_location"))
+    sent = await message.answer(
+        "<b>Выбор локации</b>\n\n"
+        "Шаг 1 из 2: выбери город.",
+        reply_markup=cities_keyboard(cities, "profile_location"),
+    )
+    await state.update_data(location_message_id=sent.message_id)
     await state.set_state(LocationState.profile_city)
+
+
+@location_router.message(
+    StateFilter(LocationState.profile_city, LocationState.profile_district),
+    F.text == "/cancel",
+)
+async def cancel_location_selection(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("Выбор локации отменен.", reply_markup=MAIN_MENU)
 
 
 @location_router.callback_query(LocationState.profile_city, F.data.startswith("profile_location:city:"))
@@ -45,7 +60,12 @@ async def choose_profile_city(callback: CallbackQuery, state: FSMContext) -> Non
         )
 
     await state.update_data(city_id=city.id, city_name=city.name)
-    await callback.message.answer("Выбери район.", reply_markup=districts_keyboard(districts, "profile_location"))
+    await callback.message.edit_text(
+        "<b>Выбор локации</b>\n\n"
+        f"Город: {city.name}\n\n"
+        "Шаг 2 из 2: выбери район.",
+        reply_markup=districts_keyboard(districts, "profile_location"),
+    )
     await state.set_state(LocationState.profile_district)
     await callback.answer()
 
@@ -81,5 +101,9 @@ async def choose_profile_district(callback: CallbackQuery, state: FSMContext) ->
 
     await state.clear()
     location = ", ".join(item for item in [city_name, district_name] if item)
-    await callback.message.answer(f"Локация сохранена: {location}", reply_markup=MAIN_MENU)
+    await callback.message.edit_text(
+        "<b>Выбор локации</b>\n\n"
+        f"Локация сохранена: {location}"
+    )
+    await callback.message.answer("Готово.", reply_markup=MAIN_MENU)
     await callback.answer()
