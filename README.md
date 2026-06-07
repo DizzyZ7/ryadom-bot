@@ -16,6 +16,8 @@ The first version supports:
 - helper offers
 - accepting and rejecting offers
 - moving accepted requests to in-progress status
+- completion flow with helper rating
+- user reviews and rating aggregation
 - safe Telegram notifications
 - complaints
 - admin moderation
@@ -86,6 +88,7 @@ ENVIRONMENT=local
 LOG_LEVEL=INFO
 AUTO_PUBLISH_WITHOUT_ADMINS=true
 CREATE_SCHEMA_ON_START=true
+RATE_LIMIT_SECONDS=0.7
 ```
 
 ## User commands
