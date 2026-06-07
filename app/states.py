@@ -19,6 +19,11 @@ class ProfileState(StatesGroup):
     district = State()
 
 
+class LocationState(StatesGroup):
+    profile_city = State()
+    profile_district = State()
+
+
 class OfferState(StatesGroup):
     message = State()
 
