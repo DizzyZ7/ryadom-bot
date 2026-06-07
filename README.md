@@ -32,12 +32,28 @@ The first version supports:
 ## Local start
 
 1. Create `.env` from `.env.example`.
-2. Install dependencies from `deps.txt` or create `requirements.txt` with the same content.
+2. Install dependencies.
 3. Start PostgreSQL.
 4. Apply migrations or enable `CREATE_SCHEMA_ON_START=true`.
-5. Run:
+5. Run the bot.
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+docker compose up -d
+alembic upgrade head
+python run.py
+```
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+docker compose up -d
+alembic upgrade head
 python run.py
 ```
 
