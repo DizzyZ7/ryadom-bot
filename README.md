@@ -12,6 +12,7 @@ The first version supports:
 - request categories
 - published requests feed
 - user requests list
+- request lifecycle management
 - helper offers
 - accepting and rejecting offers
 - moving accepted requests to in-progress status
@@ -89,6 +90,7 @@ CREATE_SCHEMA_ON_START=true
 
 - `/start` — start bot and create profile
 - `/cancel` — cancel current action
+- `/request request_id` — show request details and owner actions
 - `Профиль` — set city and district
 - `Нужна помощь` — create request
 - `Заявки рядом` — show local requests
