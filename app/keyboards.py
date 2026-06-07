@@ -31,6 +31,14 @@ REWARD_TYPES = [
     ("paid", "Платная помощь"),
 ]
 
+URGENCY_TYPES = [
+    ("urgent", "Срочно"),
+    ("today", "Сегодня"),
+    ("tomorrow", "Завтра"),
+    ("week", "На неделе"),
+    ("flexible", "Не срочно"),
+]
+
 
 def categories_keyboard() -> InlineKeyboardMarkup:
     buttons = [
@@ -44,6 +52,14 @@ def reward_keyboard() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text=label, callback_data=f"reward:{value}")]
         for value, label in REWARD_TYPES
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def urgency_keyboard() -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(text=label, callback_data=f"urgency:{value}")]
+        for value, label in URGENCY_TYPES
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
