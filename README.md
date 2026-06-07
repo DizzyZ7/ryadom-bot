@@ -17,6 +17,7 @@ The first version supports:
 - admin moderation
 - user ban and unban
 - PostgreSQL storage through SQLAlchemy async
+- Alembic migrations
 
 ## Stack
 
@@ -25,6 +26,7 @@ The first version supports:
 - PostgreSQL
 - SQLAlchemy 2
 - asyncpg
+- Alembic
 - pydantic-settings
 
 ## Local start
@@ -32,10 +34,23 @@ The first version supports:
 1. Create `.env` from `.env.example`.
 2. Install dependencies from `deps.txt` or create `requirements.txt` with the same content.
 3. Start PostgreSQL.
-4. Run:
+4. Apply migrations or enable `CREATE_SCHEMA_ON_START=true`.
+5. Run:
 
 ```bash
 python run.py
+```
+
+## Migrations
+
+```bash
+alembic upgrade head
+```
+
+For production, prefer migrations and set:
+
+```env
+CREATE_SCHEMA_ON_START=false
 ```
 
 ## Environment
