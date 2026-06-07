@@ -4,3 +4,4 @@ asyncpg
 alembic
 pydantic-settings
 python-dotenv
+psycopg[binary]
