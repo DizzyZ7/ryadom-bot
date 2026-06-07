@@ -13,6 +13,8 @@ The first version supports:
 - published requests feed
 - user requests list
 - helper offers
+- accepting and rejecting offers
+- moving accepted requests to in-progress status
 - complaints
 - admin moderation
 - user ban and unban
@@ -92,6 +94,8 @@ CREATE_SCHEMA_ON_START=true
 - `Заявки рядом` — show local requests
 - `Хочу помочь` — show local requests
 - `Мои заявки` — show own requests
+- `Отклики по моим заявкам` or `/offers` — show incoming offers for own requests
+- `Мои отклики` or `/myoffers` — show sent offers
 - `Правила безопасности` — safety rules
 
 ## Admin commands
