@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import SessionFactory
 from app.keyboards import CATEGORIES, MAIN_MENU, REWARD_TYPES, categories_keyboard, request_actions_keyboard, reward_keyboard
-from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.location_keyboards import cities_keyboard, districts_keyboard
+from app.models import City, District, HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
 from app.notifications import safe_send_message
 from app.repositories import create_help_request, create_offer, get_or_create_user, get_request_by_id, list_published_requests, list_user_requests, update_user_location
 from app.states import CreateRequestState, OfferState, ProfileState
@@ -113,7 +114,8 @@ async def profile_handler(message: Message, state: FSMContext) -> None:
             f"Локация: {location}\n"
             f"Рейтинг: {user.rating} ({user.rating_count} отзывов)\n"
             f"Аккаунт: {'проверен' if user.is_verified else 'не проверен'}\n\n"
-            "Чтобы изменить город и район, отправь: <code>город, район</code>"
+            "Для выбора из справочника нажми кнопку <b>Выбрать локацию</b>.\n"
+            "Или отправь вручную: <code>город, район</code>"
         )
     await state.set_state(ProfileState.city)
 
@@ -166,8 +168,35 @@ async def create_request_description(message: Message, state: FSMContext) -> Non
         await message.answer("Описание слишком короткое.")
         return
     await state.update_data(description=description)
-    await message.answer("Укажи город.")
+    async with SessionFactory() as session:
+        cities = list(await session.scalars(select(City).where(City.is_active.is_(True)).order_by(City.name.asc())))
+    if cities:
+        await message.answer("Выбери город заявки.", reply_markup=cities_keyboard(cities, "request_location"))
+    else:
+        await message.answer("Укажи город.")
     await state.set_state(CreateRequestState.city)
+
+
+@user_router.callback_query(CreateRequestState.city, F.data.startswith("request_location:city:"))
+async def create_request_city_from_catalog(callback: CallbackQuery, state: FSMContext) -> None:
+    city_id = int(callback.data.rsplit(":", 1)[1])
+    async with SessionFactory() as session:
+        city = await session.get(City, city_id)
+        if city is None or not city.is_active:
+            await callback.answer("Город недоступен", show_alert=True)
+            return
+        districts = list(
+            await session.scalars(
+                select(District)
+                .where(District.city_id == city.id)
+                .where(District.is_active.is_(True))
+                .order_by(District.name.asc())
+            )
+        )
+    await state.update_data(city=city.name)
+    await callback.message.answer("Выбери район заявки.", reply_markup=districts_keyboard(districts, "request_location"))
+    await state.set_state(CreateRequestState.district)
+    await callback.answer()
 
 
 @user_router.message(CreateRequestState.city)
@@ -179,6 +208,23 @@ async def create_request_city(message: Message, state: FSMContext) -> None:
     await state.update_data(city=city)
     await message.answer("Укажи район. Если не важно, напиши -")
     await state.set_state(CreateRequestState.district)
+
+
+@user_router.callback_query(CreateRequestState.district, F.data.startswith("request_location:district:"))
+async def create_request_district_from_catalog(callback: CallbackQuery, state: FSMContext) -> None:
+    district_id = int(callback.data.rsplit(":", 1)[1])
+    district_name = None
+    if district_id > 0:
+        async with SessionFactory() as session:
+            district = await session.get(District, district_id)
+            if district is None or not district.is_active:
+                await callback.answer("Район недоступен", show_alert=True)
+                return
+            district_name = district.name
+    await state.update_data(district=district_name)
+    await callback.message.answer("Ориентир или адрес без квартиры. Если не хочешь указывать, напиши -")
+    await state.set_state(CreateRequestState.address_hint)
+    await callback.answer()
 
 
 @user_router.message(CreateRequestState.district)
