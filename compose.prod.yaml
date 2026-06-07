@@ -1,0 +1,30 @@
+services:
+  bot:
+    build: .
+    container_name: ryadom_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && python run.py"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ryadom_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ryadom}
+      POSTGRES_USER: ${POSTGRES_USER:-ryadom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ryadom} -d ${POSTGRES_DB:-ryadom}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
