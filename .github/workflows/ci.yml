@@ -26,3 +26,13 @@ jobs:
 
       - name: Compile Python files
         run: python -m compileall app run.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t ryadom-bot:ci .
