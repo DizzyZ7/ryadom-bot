@@ -5,6 +5,8 @@ from sqlalchemy import select
 
 from app.database import SessionFactory
 from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.notifications import safe_send_message
+from app.review_handlers import rating_keyboard
 
 request_management_router = Router()
 
@@ -87,6 +89,8 @@ async def show_request(message: Message) -> None:
 @request_management_router.callback_query(F.data.startswith("request_done:"))
 async def mark_request_done(callback: CallbackQuery) -> None:
     request_id = int(callback.data.split(":", 1)[1])
+    helper_id: int | None = None
+    helper_telegram_id: int | None = None
 
     async with SessionFactory() as session:
         row = await session.execute(
@@ -108,10 +112,31 @@ async def mark_request_done(callback: CallbackQuery) -> None:
             await callback.answer("Этот статус нельзя завершить", show_alert=True)
             return
 
+        accepted_row = await session.execute(
+            select(Offer, User)
+            .join(User, User.id == Offer.helper_id)
+            .where(Offer.request_id == request.id)
+            .where(Offer.status == OfferStatus.ACCEPTED.value)
+        )
+        accepted_item = accepted_row.one_or_none()
+        if accepted_item:
+            accepted_offer, helper = accepted_item
+            helper_id = helper.id
+            helper_telegram_id = helper.telegram_id
+
         request.status = HelpRequestStatus.DONE.value
         await session.commit()
 
     await callback.message.answer(f"Заявка #{request_id} отмечена как выполненная.")
+
+    if helper_id:
+        await callback.message.answer(
+            "Оцени помощника по этой заявке от 1 до 5.",
+            reply_markup=rating_keyboard(request_id, helper_id),
+        )
+    if helper_telegram_id:
+        await safe_send_message(callback.bot, helper_telegram_id, f"Заявка #{request_id} отмечена как выполненная.")
+
     await callback.answer()
 
 
@@ -140,9 +165,6 @@ async def cancel_request(callback: CallbackQuery) -> None:
             return
 
         request.status = HelpRequestStatus.CANCELED.value
-        await session.execute(
-            select(Offer).where(Offer.request_id == request.id)
-        )
         offers = await session.scalars(select(Offer).where(Offer.request_id == request.id))
         for offer in offers:
             if offer.status == OfferStatus.PENDING.value:
