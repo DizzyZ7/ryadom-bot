@@ -25,6 +25,12 @@ class LocationState(StatesGroup):
     profile_district = State()
 
 
+class RequestFilterState(StatesGroup):
+    category = State()
+    urgency = State()
+    scope = State()
+
+
 class OfferState(StatesGroup):
     message = State()
 
