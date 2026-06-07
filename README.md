@@ -28,6 +28,7 @@ The first version supports:
 - admin moderation
 - complaint actions
 - admin statistics
+- moderator audit log
 - user ban and unban
 - user verification
 - PostgreSQL storage through SQLAlchemy async
@@ -119,6 +120,8 @@ MAX_PENDING_OFFERS_PER_USER=10
 
 - `/admin` — admin dashboard
 - `/stats` — project statistics
+- `/audit` — last 10 moderator actions
+- `/audit 30` — last 30 moderator actions
 - `/moderation` — requests waiting for moderation
 - `/complaints` — new complaints
 - `/complaint complaint_id` — complaint details and actions
