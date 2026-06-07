@@ -28,6 +28,7 @@ The first version supports:
 - trust info in request and offer cards
 - hiding banned authors from public feed
 - safe Telegram notifications
+- global error handling with admin alerts
 - anti-spam rate limits
 - per-user limits for unverified users
 - complaints
@@ -123,6 +124,10 @@ For production, prefer migrations and set:
 ```env
 CREATE_SCHEMA_ON_START=false
 ```
+
+## Error handling
+
+Unhandled handler errors are logged with traceback. The bot also sends a short error notice to admins with cooldown protection to avoid notification spam.
 
 ## Request urgency
 
