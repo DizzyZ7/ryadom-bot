@@ -105,5 +105,4 @@ async def choose_profile_district(callback: CallbackQuery, state: FSMContext) ->
         "<b>Выбор локации</b>\n\n"
         f"Локация сохранена: {location}"
     )
-    await callback.message.answer("Готово.", reply_markup=MAIN_MENU)
     await callback.answer()
