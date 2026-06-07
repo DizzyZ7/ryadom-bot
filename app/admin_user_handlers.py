@@ -1,3 +1,4 @@
+from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import select
@@ -5,7 +6,6 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import SessionFactory
 from app.models import User
-from aiogram import Router
 
 admin_user_router = Router()
 
@@ -14,21 +14,30 @@ def is_admin(telegram_id: int) -> bool:
     return settings.is_admin(telegram_id)
 
 
+async def get_user_by_telegram_id(telegram_id: int) -> User | None:
+    async with SessionFactory() as session:
+        return await session.scalar(select(User).where(User.telegram_id == telegram_id))
+
+
+def parse_telegram_id(message: Message, command_hint: str) -> int | None:
+    args = (message.text or "").split(maxsplit=1)
+    if len(args) < 2 or not args[1].strip().isdigit():
+        return None
+    return int(args[1].strip())
+
+
 @admin_user_router.message(Command("user"))
 async def show_user(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer("Нет доступа.")
         return
 
-    args = (message.text or "").split(maxsplit=1)
-    if len(args) < 2 or not args[1].strip().isdigit():
+    telegram_id = parse_telegram_id(message, "/user telegram_id")
+    if telegram_id is None:
         await message.answer("Использование: /user telegram_id")
         return
 
-    telegram_id = int(args[1].strip())
-    async with SessionFactory() as session:
-        user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
-
+    user = await get_user_by_telegram_id(telegram_id)
     if user is None:
         await message.answer("Пользователь не найден.")
         return
@@ -40,7 +49,8 @@ async def show_user(message: Message) -> None:
         f"Имя: {user.first_name or '-'}\n"
         f"Город: {user.city or '-'}\n"
         f"Район: {user.district or '-'}\n"
-        f"Рейтинг: {user.rating}\n"
+        f"Рейтинг: {user.rating} ({user.rating_count} отзывов)\n"
+        f"Проверен: {'да' if user.is_verified else 'нет'}\n"
         f"Забанен: {'да' if user.is_banned else 'нет'}"
     )
 
@@ -51,12 +61,10 @@ async def ban_user(message: Message) -> None:
         await message.answer("Нет доступа.")
         return
 
-    args = (message.text or "").split(maxsplit=1)
-    if len(args) < 2 or not args[1].strip().isdigit():
+    telegram_id = parse_telegram_id(message, "/ban telegram_id")
+    if telegram_id is None:
         await message.answer("Использование: /ban telegram_id")
         return
-
-    telegram_id = int(args[1].strip())
     if telegram_id == message.from_user.id:
         await message.answer("Нельзя забанить самого себя.")
         return
@@ -78,12 +86,11 @@ async def unban_user(message: Message) -> None:
         await message.answer("Нет доступа.")
         return
 
-    args = (message.text or "").split(maxsplit=1)
-    if len(args) < 2 or not args[1].strip().isdigit():
+    telegram_id = parse_telegram_id(message, "/unban telegram_id")
+    if telegram_id is None:
         await message.answer("Использование: /unban telegram_id")
         return
 
-    telegram_id = int(args[1].strip())
     async with SessionFactory() as session:
         user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
         if user is None:
@@ -93,3 +100,47 @@ async def unban_user(message: Message) -> None:
         await session.commit()
 
     await message.answer(f"Пользователь {telegram_id} разбанен.")
+
+
+@admin_user_router.message(Command("verify"))
+async def verify_user(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        await message.answer("Нет доступа.")
+        return
+
+    telegram_id = parse_telegram_id(message, "/verify telegram_id")
+    if telegram_id is None:
+        await message.answer("Использование: /verify telegram_id")
+        return
+
+    async with SessionFactory() as session:
+        user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
+        if user is None:
+            await message.answer("Пользователь не найден.")
+            return
+        user.is_verified = True
+        await session.commit()
+
+    await message.answer(f"Пользователь {telegram_id} отмечен как проверенный.")
+
+
+@admin_user_router.message(Command("unverify"))
+async def unverify_user(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        await message.answer("Нет доступа.")
+        return
+
+    telegram_id = parse_telegram_id(message, "/unverify telegram_id")
+    if telegram_id is None:
+        await message.answer("Использование: /unverify telegram_id")
+        return
+
+    async with SessionFactory() as session:
+        user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
+        if user is None:
+            await message.answer("Пользователь не найден.")
+            return
+        user.is_verified = False
+        await session.commit()
+
+    await message.answer(f"Проверка пользователя {telegram_id} снята.")
