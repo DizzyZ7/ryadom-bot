@@ -32,6 +32,7 @@ The first version supports:
 - per-user limits for unverified users
 - complaints
 - admin moderation
+- paginated admin lists
 - complaint actions
 - admin statistics
 - moderator audit log
@@ -108,7 +109,7 @@ The `Фильтр заявок` button lets users filter requests by category, u
 
 ## User experience
 
-Selection-based flows use editable messages where possible. The filter flow and create-request wizard update one master message instead of sending a new bot message for every button step.
+Selection-based flows use editable messages where possible. The filter flow, profile location flow and create-request wizard update one master message instead of sending a new bot message for every button step.
 
 ## Environment
 
@@ -148,15 +149,14 @@ MAX_PENDING_OFFERS_PER_USER=10
 
 - `/admin` — admin dashboard
 - `/stats` — project statistics
-- `/audit` — last 10 moderator actions
-- `/audit 30` — last 30 moderator actions
+- `/audit` — paginated moderator action log
 - `/locations` — city and district catalog
 - `/addcity city_name` — add or reactivate city
 - `/adddistrict city_id district_name` — add or reactivate district
 - `/hidecity city_id` — hide city from user selection
 - `/hidedistrict district_id` — hide district from user selection
-- `/moderation` — requests waiting for moderation
-- `/complaints` — new complaints
+- `/moderation` — paginated requests waiting for moderation
+- `/complaints` — paginated new complaints
 - `/complaint complaint_id` — complaint details and actions
 - `/user telegram_id` — user details
 - `/ban telegram_id` — ban user
