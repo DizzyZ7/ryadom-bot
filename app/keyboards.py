@@ -4,10 +4,11 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 MAIN_MENU = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="Нужна помощь"), KeyboardButton(text="Хочу помочь")],
-        [KeyboardButton(text="Заявки рядом"), KeyboardButton(text="Мои заявки")],
-        [KeyboardButton(text="Отклики по моим заявкам"), KeyboardButton(text="Мои отклики")],
-        [KeyboardButton(text="Мой профиль"), KeyboardButton(text="Профиль")],
-        [KeyboardButton(text="Выбрать локацию"), KeyboardButton(text="Правила безопасности")],
+        [KeyboardButton(text="Заявки рядом"), KeyboardButton(text="Фильтр заявок")],
+        [KeyboardButton(text="Мои заявки"), KeyboardButton(text="Мои отклики")],
+        [KeyboardButton(text="Отклики по моим заявкам"), KeyboardButton(text="Мой профиль")],
+        [KeyboardButton(text="Профиль"), KeyboardButton(text="Выбрать локацию")],
+        [KeyboardButton(text="Правила безопасности")],
     ],
     resize_keyboard=True,
 )
@@ -62,6 +63,34 @@ def urgency_keyboard() -> InlineKeyboardMarkup:
         for value, label in URGENCY_TYPES
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def filter_category_keyboard() -> InlineKeyboardMarkup:
+    buttons = [[InlineKeyboardButton(text="Любая категория", callback_data="filter_category:any")]]
+    buttons.extend(
+        [InlineKeyboardButton(text=label, callback_data=f"filter_category:{value}")]
+        for value, label in CATEGORIES
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def filter_urgency_keyboard() -> InlineKeyboardMarkup:
+    buttons = [[InlineKeyboardButton(text="Любая срочность", callback_data="filter_urgency:any")]]
+    buttons.extend(
+        [InlineKeyboardButton(text=label, callback_data=f"filter_urgency:{value}")]
+        for value, label in URGENCY_TYPES
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def filter_scope_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Мой район", callback_data="filter_scope:district")],
+            [InlineKeyboardButton(text="Весь город", callback_data="filter_scope:city")],
+            [InlineKeyboardButton(text="Все города", callback_data="filter_scope:all")],
+        ]
+    )
 
 
 def request_actions_keyboard(request_id: int, owner_telegram_id: int, current_telegram_id: int) -> InlineKeyboardMarkup:
