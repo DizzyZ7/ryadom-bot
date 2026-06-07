@@ -16,8 +16,10 @@ The first version supports:
 - helper offers
 - accepting and rejecting offers
 - moving accepted requests to in-progress status
+- safe Telegram notifications
 - complaints
 - admin moderation
+- complaint actions
 - user ban and unban
 - PostgreSQL storage through SQLAlchemy async
 - Alembic migrations
@@ -105,6 +107,7 @@ CREATE_SCHEMA_ON_START=true
 - `/admin` — admin dashboard
 - `/moderation` — requests waiting for moderation
 - `/complaints` — new complaints
+- `/complaint complaint_id` — complaint details and actions
 - `/user telegram_id` — user details
 - `/ban telegram_id` — ban user
 - `/unban telegram_id` — unban user
