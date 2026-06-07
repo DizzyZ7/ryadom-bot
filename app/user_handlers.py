@@ -2,6 +2,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from html import escape
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +29,12 @@ STATUS_LABELS = {
 }
 
 
+def safe_text(value: object, fallback: str = "-") -> str:
+    if value is None:
+        return fallback
+    return escape(str(value))
+
+
 def public_name(user: User | None) -> str:
     if user is None:
         return "неизвестно"
@@ -40,7 +47,7 @@ def trust_line(user: User | None) -> str:
     if user is None:
         return "Автор: неизвестно"
     verified = "проверен" if user.is_verified else "не проверен"
-    return f"Автор: {public_name(user)} | рейтинг {user.rating} ({user.rating_count} отзывов) | {verified}"
+    return f"Автор: {safe_text(public_name(user))} | рейтинг {user.rating} ({user.rating_count} отзывов) | {verified}"
 
 
 def format_request(request: HelpRequest, owner: User | None = None) -> str:
@@ -51,15 +58,15 @@ def format_request(request: HelpRequest, owner: User | None = None) -> str:
         reward = f"{reward}: {request.reward_amount}"
     urgency = URGENCY_LABELS.get(getattr(request, "urgency", "flexible"), "Не срочно")
     return (
-        f"<b>#{request.id} {request.title}</b>\n"
-        f"Категория: {CATEGORY_LABELS.get(request.category, request.category)}\n"
-        f"Статус: {STATUS_LABELS.get(request.status, request.status)}\n"
-        f"Срочность: {urgency}\n"
-        f"Район: {location}\n"
-        f"Когда: {request.needed_at_text or 'не указано'}\n"
-        f"Оплата: {reward}\n"
+        f"<b>#{request.id} {safe_text(request.title)}</b>\n"
+        f"Категория: {safe_text(CATEGORY_LABELS.get(request.category, request.category))}\n"
+        f"Статус: {safe_text(STATUS_LABELS.get(request.status, request.status))}\n"
+        f"Срочность: {safe_text(urgency)}\n"
+        f"Район: {safe_text(location)}\n"
+        f"Когда: {safe_text(request.needed_at_text, 'не указано')}\n"
+        f"Оплата: {safe_text(reward)}\n"
         f"{trust_line(request_owner)}\n\n"
-        f"{request.description}"
+        f"{safe_text(request.description)}"
     )
 
 
@@ -108,7 +115,7 @@ async def profile_handler(message: Message, state: FSMContext) -> None:
         location = ", ".join(item for item in [user.city, user.district] if item) or "не указано"
         await message.answer(
             "<b>Профиль</b>\n"
-            f"Локация: {location}\n"
+            f"Локация: {safe_text(location)}\n"
             f"Рейтинг: {user.rating} ({user.rating_count} отзывов)\n"
             f"Аккаунт: {'проверен' if user.is_verified else 'не проверен'}\n\n"
             "Для выбора из справочника нажми кнопку <b>Выбрать локацию</b>.\n"
@@ -218,7 +225,7 @@ async def offer_save(message: Message, state: FSMContext) -> None:
             message.bot,
             owner_telegram_id,
             f"Новый отклик по заявке #{request_id}\n"
-            f"От: {helper_label}\n\n"
-            f"{offer_message}\n\n"
+            f"От: {safe_text(helper_label)}\n\n"
+            f"{safe_text(offer_message)}\n\n"
             "Открой: /offers",
         )
