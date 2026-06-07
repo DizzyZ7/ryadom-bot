@@ -279,7 +279,16 @@ Expected:
 - `/stats` shows counters
 - `/audit` is paginated
 
-## 14. Docker smoke test
+## 14. Error handling
+
+During testing, watch bot logs. If any handler raises an unexpected exception, expected behavior is:
+
+- traceback appears in logs
+- user receives a generic error message
+- admin receives a short Telegram alert
+- repeated errors are throttled and do not spam admins every second
+
+## 15. Docker smoke test
 
 ```bash
 cp .env.prod.example .env
@@ -294,7 +303,7 @@ Expected:
 - bot starts polling
 - `/health` works in Telegram
 
-## 15. Rollback basics
+## 16. Rollback basics
 
 Before real testing, make backup:
 
