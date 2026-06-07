@@ -19,6 +19,13 @@ def user_label(user: User | None) -> str:
     return user.first_name or str(user.telegram_id)
 
 
+def user_trust_label(user: User | None) -> str:
+    if user is None:
+        return "неизвестно"
+    verified = "проверен" if user.is_verified else "не проверен"
+    return f"{user_label(user)} | рейтинг {user.rating} ({user.rating_count} отзывов) | {verified}"
+
+
 def offer_keyboard(offer_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -59,7 +66,7 @@ async def owner_offers(message: Message) -> None:
         await message.answer(
             f"<b>Отклик #{offer.id}</b>\n"
             f"Заявка: #{request.id} {request.title}\n"
-            f"Помощник: {user_label(helper)}\n\n"
+            f"Помощник: {user_trust_label(helper)}\n\n"
             f"{offer.message or 'Без сообщения'}",
             reply_markup=offer_keyboard(offer.id),
         )
