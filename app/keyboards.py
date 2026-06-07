@@ -7,7 +7,7 @@ MAIN_MENU = ReplyKeyboardMarkup(
         [KeyboardButton(text="Заявки рядом"), KeyboardButton(text="Мои заявки")],
         [KeyboardButton(text="Отклики по моим заявкам"), KeyboardButton(text="Мои отклики")],
         [KeyboardButton(text="Мой профиль"), KeyboardButton(text="Профиль")],
-        [KeyboardButton(text="Правила безопасности")],
+        [KeyboardButton(text="Выбрать локацию"), KeyboardButton(text="Правила безопасности")],
     ],
     resize_keyboard=True,
 )
