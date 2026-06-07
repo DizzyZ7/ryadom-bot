@@ -1,8 +1,16 @@
-from sqlalchemy import Select, select
+from sqlalchemy import Select, case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.models import HelpRequest, HelpRequestStatus, HelpRequestUrgency, Offer, OfferStatus, User
+
+URGENCY_SORT = case(
+    (HelpRequest.urgency == HelpRequestUrgency.URGENT.value, 1),
+    (HelpRequest.urgency == HelpRequestUrgency.TODAY.value, 2),
+    (HelpRequest.urgency == HelpRequestUrgency.TOMORROW.value, 3),
+    (HelpRequest.urgency == HelpRequestUrgency.WEEK.value, 4),
+    else_=5,
+)
 
 
 async def get_or_create_user(
@@ -49,6 +57,7 @@ async def create_help_request(
     district: str | None,
     address_hint: str | None,
     needed_at_text: str | None,
+    urgency: str,
     reward_type: str,
     reward_amount: float | None,
     status: HelpRequestStatus,
@@ -62,6 +71,7 @@ async def create_help_request(
         district=district,
         address_hint=address_hint.strip() if address_hint else None,
         needed_at_text=needed_at_text.strip() if needed_at_text else None,
+        urgency=urgency,
         reward_type=reward_type,
         reward_amount=reward_amount,
         status=status.value,
@@ -84,7 +94,7 @@ async def list_published_requests(
         .options(selectinload(HelpRequest.owner))
         .where(HelpRequest.status == HelpRequestStatus.PUBLISHED.value)
         .where(User.is_banned.is_(False))
-        .order_by(HelpRequest.created_at.desc())
+        .order_by(URGENCY_SORT.asc(), HelpRequest.created_at.desc())
         .limit(limit)
     )
     if city:
