@@ -5,6 +5,7 @@ from sqlalchemy import select, update
 
 from app.database import SessionFactory
 from app.models import HelpRequest, HelpRequestStatus, Offer, OfferStatus, User
+from app.notifications import safe_send_message
 from app.repositories import get_or_create_user
 
 offer_management_router = Router()
@@ -27,16 +28,6 @@ def offer_keyboard(offer_id: int) -> InlineKeyboardMarkup:
             ]
         ]
     )
-
-
-async def get_current_user(message: Message) -> User:
-    async with SessionFactory() as session:
-        return await get_or_create_user(
-            session=session,
-            telegram_id=message.from_user.id,
-            username=message.from_user.username,
-            first_name=message.from_user.first_name,
-        )
 
 
 @offer_management_router.message(Command("offers"))
@@ -153,7 +144,8 @@ async def accept_offer(callback: CallbackQuery) -> None:
         await session.commit()
 
     await callback.message.answer(f"Отклик #{offer_id} принят. Заявка переведена в работу.")
-    await callback.bot.send_message(
+    await safe_send_message(
+        callback.bot,
         helper.telegram_id,
         f"Твой отклик по заявке #{request.id} принят. Свяжись с автором заявки через Telegram: {user_label(current_user)}",
     )
@@ -193,5 +185,5 @@ async def reject_offer(callback: CallbackQuery) -> None:
         await session.commit()
 
     await callback.message.answer(f"Отклик #{offer_id} отклонен.")
-    await callback.bot.send_message(helper.telegram_id, f"Твой отклик по заявке #{request.id} отклонен.")
+    await safe_send_message(callback.bot, helper.telegram_id, f"Твой отклик по заявке #{request.id} отклонен.")
     await callback.answer()
