@@ -10,6 +10,33 @@ jobs:
   python-check:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ryadom
+          POSTGRES_USER: ryadom
+          POSTGRES_PASSWORD: ryadom
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ryadom -d ryadom"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      BOT_TOKEN: test_token
+      DATABASE_URL: postgresql+asyncpg://ryadom:ryadom@localhost:5432/ryadom
+      ADMIN_IDS: 1
+      ENVIRONMENT: ci
+      LOG_LEVEL: INFO
+      AUTO_PUBLISH_WITHOUT_ADMINS: "true"
+      CREATE_SCHEMA_ON_START: "false"
+      RATE_LIMIT_SECONDS: 0.7
+      MAX_ACTIVE_REQUESTS_PER_USER: 5
+      MAX_PENDING_OFFERS_PER_USER: 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +52,13 @@ jobs:
           pip install -r requirements.txt
 
       - name: Compile Python files
-        run: python -m compileall app run.py
+        run: python -m compileall app scripts run.py
+
+      - name: Apply migrations
+        run: alembic upgrade head
+
+      - name: Run preflight
+        run: python scripts/preflight.py
 
   docker-build:
     runs-on: ubuntu-latest
