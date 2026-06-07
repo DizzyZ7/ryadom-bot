@@ -118,3 +118,15 @@ class Review(Base):
     rating: Mapped[int] = mapped_column(Integer)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModerationLog(Base):
+    __tablename__ = "moderation_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    moderator_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    entity_type: Mapped[str] = mapped_column(String(64), index=True)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
