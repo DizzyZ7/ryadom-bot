@@ -9,6 +9,7 @@ class CreateRequestState(StatesGroup):
     district = State()
     address_hint = State()
     needed_at_text = State()
+    urgency = State()
     reward_type = State()
     reward_amount = State()
     confirm = State()
