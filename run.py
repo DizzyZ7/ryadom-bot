@@ -8,6 +8,7 @@ from aiogram.enums import ParseMode
 from app.all_handlers import router
 from app.config import settings
 from app.database import create_db_schema, dispose_engine
+from app.middlewares import BanMiddleware
 
 
 async def main() -> None:
@@ -24,6 +25,8 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dispatcher = Dispatcher()
+    dispatcher.message.middleware(BanMiddleware())
+    dispatcher.callback_query.middleware(BanMiddleware())
     dispatcher.include_router(router)
 
     try:
