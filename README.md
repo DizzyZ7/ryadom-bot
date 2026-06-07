@@ -43,6 +43,7 @@ The first version supports:
 - PostgreSQL storage through SQLAlchemy async
 - Alembic migrations
 - Docker production deployment
+- preflight and smoke-test checklist
 
 ## Stack
 
@@ -69,6 +70,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 docker compose up -d
 alembic upgrade head
+python scripts/preflight.py
 python run.py
 ```
 
@@ -80,6 +82,7 @@ python -m venv .venv
 pip install -r requirements.txt
 docker compose up -d
 alembic upgrade head
+python scripts/preflight.py
 python run.py
 ```
 
@@ -97,6 +100,17 @@ After startup, open Telegram and run:
 ```text
 /health
 ```
+
+## Checks
+
+Run preflight before manual testing:
+
+```bash
+alembic upgrade head
+python scripts/preflight.py
+```
+
+Then follow `SMOKE_TEST.md`.
 
 ## Migrations
 
