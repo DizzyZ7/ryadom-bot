@@ -19,10 +19,14 @@ The first version supports:
 - completion flow with helper rating
 - user reviews and rating aggregation
 - safe Telegram notifications
+- anti-spam rate limits
+- per-user limits for unverified users
 - complaints
 - admin moderation
 - complaint actions
+- admin statistics
 - user ban and unban
+- user verification
 - PostgreSQL storage through SQLAlchemy async
 - Alembic migrations
 
@@ -89,6 +93,8 @@ LOG_LEVEL=INFO
 AUTO_PUBLISH_WITHOUT_ADMINS=true
 CREATE_SCHEMA_ON_START=true
 RATE_LIMIT_SECONDS=0.7
+MAX_ACTIVE_REQUESTS_PER_USER=5
+MAX_PENDING_OFFERS_PER_USER=10
 ```
 
 ## User commands
@@ -108,12 +114,15 @@ RATE_LIMIT_SECONDS=0.7
 ## Admin commands
 
 - `/admin` — admin dashboard
+- `/stats` — project statistics
 - `/moderation` — requests waiting for moderation
 - `/complaints` — new complaints
 - `/complaint complaint_id` — complaint details and actions
 - `/user telegram_id` — user details
 - `/ban telegram_id` — ban user
 - `/unban telegram_id` — unban user
+- `/verify telegram_id` — mark user as verified
+- `/unverify telegram_id` — remove user verification
 
 ## Production notes
 
