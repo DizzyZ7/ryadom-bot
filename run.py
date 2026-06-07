@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from app.all_handlers import router
 from app.config import settings
 from app.database import create_db_schema, dispose_engine
-from app.middlewares import BanMiddleware
+from app.middlewares import BanMiddleware, RateLimitMiddleware
 
 
 async def main() -> None:
@@ -27,6 +27,8 @@ async def main() -> None:
     dispatcher = Dispatcher()
     dispatcher.message.middleware(BanMiddleware())
     dispatcher.callback_query.middleware(BanMiddleware())
+    dispatcher.message.middleware(RateLimitMiddleware(settings.rate_limit_seconds))
+    dispatcher.callback_query.middleware(RateLimitMiddleware(settings.rate_limit_seconds))
     dispatcher.include_router(router)
 
     try:
