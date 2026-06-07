@@ -1,0 +1,27 @@
+from aiogram.fsm.state import State, StatesGroup
+
+
+class CreateRequestState(StatesGroup):
+    category = State()
+    title = State()
+    description = State()
+    city = State()
+    district = State()
+    address_hint = State()
+    needed_at_text = State()
+    reward_type = State()
+    reward_amount = State()
+    confirm = State()
+
+
+class ProfileState(StatesGroup):
+    city = State()
+    district = State()
+
+
+class OfferState(StatesGroup):
+    message = State()
+
+
+class ComplaintState(StatesGroup):
+    reason = State()
